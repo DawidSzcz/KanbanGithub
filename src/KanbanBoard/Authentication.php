@@ -2,7 +2,7 @@
 
 namespace KanbanBoard;
 
-use KanbanBoard\Utilities;
+use utils\Utilities;
 
 class Login
 {
