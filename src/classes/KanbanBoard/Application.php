@@ -12,7 +12,7 @@ use \Michelf\Markdown;
 class Application
 {
 
-    public function __construct($github, $repositories, $paused_labels = array())
+    public function __construct($github, $repositories, $paused_labels = [])
     {
         $this->github = $github;
         $this->repositories = $repositories;
@@ -21,7 +21,8 @@ class Application
 
     public function board()
     {
-        $ms = array();
+        $ms = [];
+        $milestones = [];
         foreach ($this->repositories as $repository) {
             foreach ($this->github->milestones($repository) as $data) {
                 $ms[$data['title']] = $data;
@@ -31,29 +32,36 @@ class Application
         ksort($ms);
         foreach ($ms as $name => $data) {
             $issues = $this->issues($data['repository'], $data['number']);
-            $percent = self::_percent($data['closed_issues'], $data['open_issues']);
+            $percent = $this->_percent($data['closed_issues'], $data['open_issues']);
             if ($percent) {
-                $milestones[] = array(
+                $milestones[] = [
                     'milestone' => $name,
                     'url'       => $data['html_url'],
                     'progress'  => $percent,
                     'queued'    => $issues['queued'],
                     'active'    => $issues['active'],
                     'completed' => $issues['completed']
-                );
+                ];
             }
         }
         return $milestones;
     }
 
-    private function issues($repository, $milestone_id)
+    public function issues($repository, $milestone_id)
     {
         $i = $this->github->issues($repository, $milestone_id);
+
+        $issues = [
+            'completed' => [],
+            'active'    => [],
+            'queued'    => [],
+        ];
+
         foreach ($i as $ii) {
             if (isset($ii['pull_request'])) {
                 continue;
             }
-            $issues[$ii['state'] === 'closed' ? 'completed' : (($ii['assignee']) ? 'active' : 'queued')][] = array(
+            $issues[$ii['state'] === 'closed' ? 'completed' : (($ii['assignee']) ? 'active' : 'queued')][] = [
                 'id'       => $ii['id'],
                 'number'   => $ii['number'],
                 'title'    => $ii['title'],
@@ -64,13 +72,14 @@ class Application
                         $ii
                     ) && !empty($ii['assignee'])) ? $ii['assignee']['avatar_url'] . '?s=16' : null,
                 'paused'   => self::labels_match($ii, $this->paused_labels),
-                'progress' => self::_percent(
+                'progress' => $this->_percent(
                     substr_count(strtolower($ii['body']), '[x]'),
                     substr_count(strtolower($ii['body']), '[ ]')
                 ),
                 'closed'   => $ii['closed_at']
-            );
+            ];
         }
+
         usort(
             $issues['active'],
             function ($a, $b) {
@@ -82,7 +91,10 @@ class Application
         return $issues;
     }
 
-    private static function _state($issue)
+    /**
+     * @codeCoverageIgnore
+     */
+    public static function _state($issue)
     {
         if ($issue['state'] === 'closed') {
             return 'completed';
@@ -93,30 +105,30 @@ class Application
         }
     }
 
-    private static function labels_match($issue, $needles)
+    public static function labels_match($issue, $needles)
     {
         if (Utilities::hasValue($issue, 'labels')) {
             foreach ($issue['labels'] as $label) {
                 if (in_array($label['name'], $needles)) {
-                    return array($label['name']);
+                    return [$label['name']];
                 }
             }
         }
-        return array();
+        return [];
     }
 
-    private static function _percent($complete, $remaining)
+    public function _percent($complete, $remaining)
     {
         $total = $complete + $remaining;
         if ($total > 0) {
             $percent = ($complete or $remaining) ? round($complete / $total * 100) : 0;
-            return array(
+            return [
                 'total'     => $total,
                 'complete'  => $complete,
                 'remaining' => $remaining,
                 'percent'   => $percent
-            );
+            ];
         }
-        return array();
+        return [];
     }
 }

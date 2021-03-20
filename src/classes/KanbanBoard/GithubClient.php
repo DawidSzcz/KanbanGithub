@@ -1,10 +1,15 @@
 <?php
 
+namespace KanbanBoard;
+
+use Github\Client;
+use Github\HttpClient\CachedHttpClient;
+
 class GithubClient
 {
     private $client;
     private $milestone_api;
-    private $account;
+    public static $account_name = 'ZielonyKazik';
 
     public function __construct($token, $account)
     {
@@ -19,12 +24,12 @@ class GithubClient
 
     public function milestones($repository)
     {
-        return $this->milestone_api->all($this->account, $repository);
+        return $this->milestone_api->all(static::$account_name, $repository);
     }
 
     public function issues($repository, $milestone_id)
     {
         $issue_parameters = array('milestone' => $milestone_id, 'state' => 'all');
-        return $this->client->api('issue')->all($this->account, $repository, $issue_parameters);
+        return $this->client->api('issue')->all(static::$account_name, $repository, $issue_parameters);
     }
 }

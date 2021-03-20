@@ -1,12 +1,12 @@
 <?php
 
 use KanbanBoard\Authentication;
-use KanbanBoard\GithubActual;
+use KanbanBoard\GithubClient;
 use KanbanBoard\Utilities;
 
-require '../classes/KanbanBoard/Github.php';
 require '../classes/Utilities.php';
 require '../classes/KanbanBoard/Authentication.php';
+require '../classes/KanbanBoard/GithubClient.php';
 
 $repositories = explode('|', Utilities::env('GH_REPOSITORIES'));
 $authentication = new \KanbanBoard\Login();
