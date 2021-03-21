@@ -51,9 +51,12 @@ class ApplicationTest extends TestCase
             ->onlyMethods(['_percent', 'issues'])
             ->getMock();
 
-        $ms_count = array_reduce($milestones, function($curry, $current) {
-            return $curry + count($current[1]);
-        });
+        $ms_count = array_reduce(
+            $milestones,
+            function ($curry, $current) {
+                return $curry + count($current[1]);
+            }
+        );
 
         $appMock->expects($this->exactly($ms_count))->method('issues')->willReturnMap($issues);
         $appMock->expects($this->exactly($ms_count))
@@ -107,6 +110,9 @@ class ApplicationTest extends TestCase
 
     public static function boardDataProvider()
     {
+        $queued_1 = ['number' => 1, 'labels' => [], 'state' => 'active', 'assagnee' => null, 'closed_at' => null];
+        $queued_2 = ['number' => 2, 'labels' => [], 'state' => 'active', 'assagnee' => null, 'closed_at' => null];
+        $completed_1 = ['number' => 3, 'labels' => [], 'state' => 'closed', 'assagnee' => null, 'closed_at' => null];
         return [
             'test_single_queued_issue'     => static::boardDataProviderSingle(
                 [
@@ -114,7 +120,7 @@ class ApplicationTest extends TestCase
                         2 => [
                             'open'    => 1,
                             'closed'  => 0,
-                            'issues'  => ['queued' => ['issue-1'], 'active' => [], 'completed' => []],
+                            'issues'  => [$queued_1],
                             'percent' => ['not_empty']
                         ]
                     ]
@@ -127,7 +133,7 @@ class ApplicationTest extends TestCase
                         2 => [
                             'open'    => 2,
                             'closed'  => 0,
-                            'issues'  => ['queued' => ['issue-1', 'issue-2'], 'active' => [], 'completed' => []],
+                            'issues'  => [$queued_1, $queued_2],
                             'percent' => ['not_empty']
                         ]
                     ]
@@ -140,7 +146,7 @@ class ApplicationTest extends TestCase
                         2 => [
                             'open'    => 1,
                             'closed'  => 1,
-                            'issues'  => ['queued' => ['issue-1'], 'active' => [], 'completed' => ['issue-2']],
+                            'issues'  => [$queued_1, $completed_1],
                             'percent' => ['not_empty']
                         ]
                     ]
@@ -153,7 +159,7 @@ class ApplicationTest extends TestCase
                         2 => [
                             'open'    => 0,
                             'closed'  => 0,
-                            'issues'  => ['queued' => [], 'active' => [], 'completed' => []],
+                            'issues'  => [],
                             'percent' => []
                         ]
                     ]
@@ -166,13 +172,13 @@ class ApplicationTest extends TestCase
                         2 => [
                             'open'    => 1,
                             'closed'  => 1,
-                            'issues'  => ['queued' => ['issue-1'], 'active' => [], 'completed' => ['issue-2']],
+                            'issues'  => [$queued_1, $queued_2],
                             'percent' => ['not_empty']
                         ],
                         3 => [
                             'open'    => 2,
                             'closed'  => 0,
-                            'issues'  => ['queued' => ['issue-1', 'issue-2'], 'active' => [], 'completed' => []],
+                            'issues'  => [$queued_1, $completed_1],
                             'percent' => ['not_empty']
                         ]
                     ]
@@ -185,8 +191,8 @@ class ApplicationTest extends TestCase
 
     private static function boardDataProviderSingle($config, array $exluded_labels)
     {
-        $milestones = [];
-        $issues = [];
+        $milestones_github = [];
+        $issues_github = [];
         $results = [];
         $repos = [];
         $percents = [];
@@ -197,7 +203,20 @@ class ApplicationTest extends TestCase
 
             foreach ($repo_config as $ms_number => $ms_config) {
                 $ms_in_repo[] = static::milestone($ms_number, $ms_config['open'], $ms_config['closed']);
-                $issues[] = [$repo_name, $ms_number, $ms_config['issues']];
+                $issues = array_map(
+                    function ($issue_raw) use ($ms_number) {
+                        return static::issue($ms_number, $issue_raw);
+                    },
+                    $ms_config['issues']
+                );
+
+                $issues_grouped = [
+                    'queued'    => [],
+                    'active'    => [],
+                    'completed' => $issues,
+                ];
+
+                $issues_github[] = [$repo_name, $ms_number, $issues_grouped];
                 $percents[] = $ms_config['percent'];
 
                 if (!empty($ms_config['percent'])) {
@@ -205,14 +224,14 @@ class ApplicationTest extends TestCase
                     $result['url'] = sprintf('ms-%d-url', $ms_number);
                     $result['progress'] = $ms_config['percent'];
 
-                    $results[] = $result + $ms_config['issues'];
+                    $results[] = $result + $issues_grouped;
                 }
             }
 
-            $milestones[] = [$repo_name, $ms_in_repo];
+            $milestones_github[] = [$repo_name, $ms_in_repo];
         }
 
-        return [$milestones, $issues, $repos, $exluded_labels, $percents, $results];
+        return [$milestones_github, $issues_github, $repos, $exluded_labels, $percents, $results];
     }
 
     private static function milestone(int $milestone_number, $open, $closed)
@@ -226,17 +245,17 @@ class ApplicationTest extends TestCase
         ];
     }
 
-    private static function issue(string $title, array $labels, string $state, ?array $assignee, ?string $closed_at)
+    private static function issue($ms_number, array $data)
     {
         return [
             'html_url'  => 'issue-url',
-            'id'        => 0,
-            'number'    => 0,
-            'title'     => $title,
-            'labels'    => $labels,
-            'state'     => $state,
-            'assignee'  => $assignee,
-            'closed_at' => $closed_at,
+            'id'        => sprintf('ms-%s-%d', $ms_number, $data['number']),
+            'number'    => $data['number'],
+            'title'     => $data['title'],
+            'labels'    => $data['labels'],
+            'state'     => $data['state'],
+            'assignee'  => $data['assignee'],
+            'closed_at' => $data['closed_at'],
             'body'      => '',
         ];
     }
