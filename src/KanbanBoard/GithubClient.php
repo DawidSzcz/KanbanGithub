@@ -4,7 +4,6 @@ namespace KanbanBoard;
 
 use Github\Client;
 use Github\HttpClient\CachedHttpClient;
-use utils\Utilities;
 
 class GithubClient
 {
@@ -12,9 +11,9 @@ class GithubClient
     private $issues_api;
     private $account_name;
 
-    public function __construct($token, $account)
+    public function __construct($token, $account_name)
     {
-        $this->account = $account;
+        $this->account_name = $account_name;
         $this->client = new Client(
             new CachedHttpClient(['cache_dir' => '/tmp/github-api-cache'])
         );
