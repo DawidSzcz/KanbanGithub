@@ -3,6 +3,7 @@
 
 namespace factories;
 
+use exceptions\ApiException;
 use exceptions\FactoryException;
 use interfaces\GitFactoryInterface;
 use Michelf\Markdown;
@@ -40,10 +41,28 @@ class GitFactory implements GitFactoryInterface
             Markdown::defaultTransform($data['body']),
             $data['html_url'],
             !empty($data['assignee']) ? $data['assignee']['avatar_url'] . '?s=16' : null,
-            Issue::labels_match($data['labels'] ?? [], $paused_labels),
+            static::labels_match($data['labels'], $paused_labels),
             new Amount(substr_count(strtolower($data['body']), '[x]')),
             new Amount(substr_count(strtolower($data['body']), '[ ]')),
             $data['closed_at']
         );
+    }
+
+    public static function labels_match(array $labels, array $needles): array
+    {
+        $labels = array_intersect(
+            array_map(
+                function ($label) {
+                    if (!isset($label['name'])) {
+                        throw new ApiException('Insufficient data');
+                    }
+                    return $label['name'];
+                },
+                $labels
+            ),
+            $needles
+        );
+
+        return !empty($labels) ? [reset($labels)] : [];
     }
 }

@@ -16,19 +16,35 @@ trait ProgressTrait
 
     public function getProgess(): array
     {
-        $completed = $this->completed->getContent();
-        $remaining = $this->remaining->getContent();
+        $completed = $this->getCompleted()->getContent();
+        $remaining = $this->getRemaining()->getContent();
         $total = $completed + $remaining;
 
         if ($total > 0) {
             /** TODO create dedicated model for progress */
             return [
                 'total'     => $total,
-                'completed' => $completed,
+                'complete'  => $completed,
                 'remaining' => $remaining,
                 'percent'   => round($completed / $total * 100)
             ];
         }
         return [];
+    }
+
+    /**
+     * @return Amount
+     */
+    public function getRemaining(): Amount
+    {
+        return $this->remaining;
+    }
+
+    /**
+     * @return Amount
+     */
+    public function getCompleted(): Amount
+    {
+        return $this->completed;
     }
 }

@@ -16,7 +16,7 @@ class Issue
     const STATE_QUEUED = 'queued';
 
     /**
-     * @var int
+     * @var string
      */
     private $id;
     /**
@@ -40,13 +40,13 @@ class Issue
      */
     private $assignee;
     /**
-     * @var bool
+     * @var array
      */
-    private $paused;
+    private $paused_labels;
     /**
      * @var ?string
      */
-    private $closed;
+    private $closed_at;
     /**
      * @var string
      */
@@ -56,17 +56,17 @@ class Issue
      * @codeCoverageIgnore
      */
     public function __construct(
-        int $id,
+        string $id,
         int $no,
         string $title,
         string $git_state,
         string $body,
         string $url,
         ?string $assignee,
-        bool $paused,
+        array $paused_labels,
         Amount $completed,
         Amount $remaining,
-        ?string $closed
+        ?string $closed_at
     ) {
         $this->id = $id;
         $this->no = $no;
@@ -74,8 +74,8 @@ class Issue
         $this->body = $body;
         $this->url = $url;
         $this->assignee = $assignee;
-        $this->poused = $paused;
-        $this->closed = $closed;
+        $this->paused_labels = $paused_labels;
+        $this->closed_at = $closed_at;
         $this->git_state = $git_state;
         $this->completed = $completed;
         $this->remaining = $remaining;
@@ -95,11 +95,6 @@ class Issue
         }
     }
 
-    public static function labels_match(array $labels, array $needles): bool
-    {
-        return !empty(array_intersect($labels, $needles));
-    }
-
     /**
      * @codeCoverageIgnore
      */
@@ -112,9 +107,22 @@ class Issue
             'body'     => $this->body,
             'url'      => $this->url,
             'assignee' => $this->assignee,
-            'paused'   => $this->paused,
+            'paused'   => $this->paused_labels,
             'progress' => $this->getProgess(),
-            'closed'   => $this->closed
+            'closed'   => $this->closed_at
         ];
+    }
+
+    public function getPausedLabels(): array
+    {
+        return $this->paused_labels;
+    }
+
+    /**
+     * @return string
+     */
+    public function getTitle(): string
+    {
+        return $this->title;
     }
 }

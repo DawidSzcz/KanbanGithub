@@ -60,27 +60,49 @@ class Milestone
     }
 
     /**
+     * TODO move sorting algorithm to external Strategy class
+     *
+     * @param Issue[] $issues
+     */
+    public static function sortIssues(array $issues)
+    {
+        usort(
+            $issues,
+            function (Issue $a, Issue $b) {
+                $count_a = count($a->getPausedLabels());
+                $count_b = count($b->getPausedLabels());
+
+                return $count_a === $count_b
+                    ? strcmp($a->getTitle(), $b->getTitle())
+                    : $count_a - $count_b;
+            }
+        );
+
+        return $issues;
+    }
+
+    /**
      * @codeCoverageIgnore
      */
     public function getRaw(): array
     {
         return [
-            'milestone' => $this->title,
-            'url'       => $this->url,
-            'progress'  => $this->getProgess(),
-            'queued'    => array_map(
+            'milestone'            => $this->title,
+            'url'                  => $this->url,
+            'progress'             => $this->getProgess(),
+            Issue::STATE_QUEUED    => array_map(
                 function (Issue $issue) {
                     return $issue->getRaw();
                 },
                 $this->issues_queued
             ),
-            'active'    => array_map(
+            Issue::STATE_ACTIVE    => array_map(
                 function (Issue $issue) {
                     return $issue->getRaw();
                 },
-                $this->issues_active
+                static::sortIssues($this->issues_active)
             ),
-            'completed' => array_map(
+            Issue::STATE_COMPLETED => array_map(
                 function (Issue $issue) {
                     return $issue->getRaw();
                 },
@@ -115,5 +137,13 @@ class Milestone
             default:
                 throw new \Exception(sprintf('Unknown issue state [%s]', $state));
         }
+    }
+
+    /**
+     * @return string
+     */
+    public function getTitle(): string
+    {
+        return $this->title;
     }
 }

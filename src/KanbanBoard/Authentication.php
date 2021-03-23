@@ -4,7 +4,7 @@ namespace KanbanBoard;
 
 use utils\Utilities;
 
-class Login
+class Authentication
 {
 
     private $client_id = null;
@@ -54,19 +54,19 @@ class Login
     private function _returnsFromGithub($code)
     {
         $url = 'https://github.com/login/oauth/access_token';
-        $data = array(
+        $data = [
             'code'          => $code,
             'state'         => 'LKHYgbn776tgubkjhk',
             'client_id'     => $this->client_id,
             'client_secret' => $this->client_secret
-        );
-        $options = array(
-            'http' => array(
+        ];
+        $options = [
+            'http' => [
                 'method'  => 'POST',
                 'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
                 'content' => http_build_query($data),
-            ),
-        );
+            ],
+        ];
         $context = stream_context_create($options);
         $result = file_get_contents($url, false, $context);
         if ($result === false) {

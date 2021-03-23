@@ -8,16 +8,16 @@ use KanbanBoard\GithubClient;
 use KanbanBoard\Application;
 use utils\Utilities;
 
-$repositories = array('wunderwaffel');
+$repositories = explode('|', Utilities::env('GH_REPOSITORIES'));
 //$authentication = new \KanbanBoard\Login();
 //$token = $authentication->login();
 $github = new GithubClient();
-$board = new Application($github, $repositories, new GitFactory(), array('waiting-for-feedback'));
+$board = new Application($github, $repositories, new GitFactory(), ['waiting-for-feedback']);
 $board->run();
 $data = $board->getRawMilestones();
 $m = new Mustache_Engine(
-    array(
+    [
         'loader' => new Mustache_Loader_FilesystemLoader('../views'),
-    )
+    ]
 );
-echo $m->render('index', array('milestones' => $data));
+echo $m->render('index', ['milestones' => $data]);

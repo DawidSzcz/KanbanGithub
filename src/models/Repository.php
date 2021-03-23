@@ -35,13 +35,8 @@ class Repository
      *
      * @return Milestone[]
      */
-    public function getRawMilestones(): array
+    public function getMilestones(): array
     {
-        return array_map(
-            function (Milestone $milestone) {
-                return $milestone->getRaw();
-            },
-            $this->milestones
-        );
+        return $this->milestones;
     }
 }

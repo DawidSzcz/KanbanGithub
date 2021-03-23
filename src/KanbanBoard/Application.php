@@ -5,6 +5,7 @@ namespace KanbanBoard;
 use exceptions\FactoryException;
 use interfaces\GitFactoryInterface;
 use models\Issue;
+use models\Milestone;
 use models\Repository;
 
 class Application
@@ -53,8 +54,8 @@ class Application
                 }
                 $milestone->addIssues($this->processIssues($repository_name, $milestone->getNo()));
                 $repository->addMilestone($milestone);
-                $this->repositories[] = $repository;
             }
+            $this->repositories[] = $repository;
         }
     }
 
@@ -76,10 +77,31 @@ class Application
     public function getRawMilestones(): array
     {
         $milestones = [];
-
         foreach ($this->repositories as $repository) {
-            $milestones += $repository->getRawMilestones();
+            $milestones = array_merge($milestones, $repository->getMilestones());
         }
+
+        return array_map(
+            function (Milestone $milestone) {
+                return $milestone->getRaw();
+            },
+            static::sortMilestones($milestones)
+        );
+    }
+
+    /**
+     * @codeCoverageIgnore
+     *
+     * @return Milestone[]
+     */
+    public static function sortMilestones(array $milestones): array
+    {
+        usort(
+            $milestones,
+            function (Milestone $a, Milestone $b) {
+                return strcmp($a->getTitle(), $b->getTitle());
+            }
+        );
 
         return $milestones;
     }

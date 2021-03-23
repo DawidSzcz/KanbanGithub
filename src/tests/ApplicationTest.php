@@ -4,6 +4,7 @@
 namespace tests;
 
 
+use factories\GitFactory;
 use KanbanBoard\Application;
 use Michelf\Markdown;
 use PHPUnit\Framework\TestCase;
@@ -11,27 +12,7 @@ use PHPUnit\Framework\TestCase;
 
 class ApplicationTest extends TestCase
 {
-
-    const PERCENT_RESULT = [1];
     const EMPTY_PERCENT_RESULT = [];
-
-    /**
-     * @param string[] $labels_to_match
-     * @param string[] $expected_match
-     *
-     * @covers       \KanbanBoard\Application::labels_match
-     * @dataProvider labelMatchDataProvider
-     */
-    public function testLabelsMatch(array $issue, array $labels_to_match, array $expected_match): void
-    {
-        $match = Application::labels_match($issue, $labels_to_match);
-
-        static::assertEquals(
-            $match,
-            $expected_match,
-            sprintf('%s not equal: %s', var_export($match, true), var_export([$expected_match], true))
-        );
-    }
 
     /**
      * @covers       \KanbanBoard\Application::board
@@ -44,10 +25,18 @@ class ApplicationTest extends TestCase
         array $excluded_labels,
         array $expected
     ): void {
-        $ms_count = array_reduce(
+        $github_issues_call_count = array_reduce(
             $milestones,
             function ($curry, $current) {
-                return $curry + count($current[1]);
+                return $curry + count(
+                        array_filter(
+                            $current[1],
+                            function ($milestone_raw) {
+                                return $milestone_raw['open_issues'] +
+                                    $milestone_raw['closed_issues'] > 0;
+                            }
+                        )
+                    );
             },
             0
         );
@@ -55,54 +44,13 @@ class ApplicationTest extends TestCase
             ->disableOriginalConstructor()
             ->onlyMethods(['milestones', 'issues'])
             ->getMock();
-        $githubMock->expects($this->once())->method('milestones')->willReturnMap($milestones);
-        $githubMock->expects($this->exactly($ms_count))->method('issues')->willReturnMap($issues);
+        $githubMock->expects($this->exactly(count($repositories)))->method('milestones')->willReturnMap($milestones);
+        $githubMock->expects($this->exactly($github_issues_call_count))->method('issues')->willReturnMap($issues);
 
-        $app = new Application($githubMock, $repositories, $excluded_labels);
+        $app = new Application($githubMock, $repositories, new GitFactory(), $excluded_labels);
+        $app->run();
 
-        self::assertSame($expected, $app->board());
-    }
-
-    /**
-     * @covers       \KanbanBoard\Application::_percent
-     * @dataProvider percentDataProvider
-     */
-    public function testPercent(int $completed_count, int $remaining_count, array $expected_result): void
-    {
-        $app = new Application(null, [], []);
-
-        static::assertSame(
-            $expected_result,
-            $app->_percent($completed_count, $remaining_count),
-        );
-    }
-
-
-    public static function labelMatchDataProvider()
-    {
-        return [
-            [static::issueWithLabel(['xyz']), ['xyz'], ['xyz']],
-            [static::issueWithLabel([]), ['xyz'], []],
-            [[], ['xyz'], []],
-            [static::issueWithLabel(['abc']), ['xyz'], []],
-            [static::issueWithLabel(['xyz', 'abc']), ['xyz'], ['xyz']],
-            [static::issueWithLabel(['xyz', 'abc']), ['abc'], ['abc']],
-            [static::issueWithLabel(['xyz', 'abc']), ['xyz', 'abc'], ['xyz']],
-            [static::issueWithLabel(['abc']), ['xyz', 'abc'], ['abc']],
-            [static::issueWithLabel(['qwe']), ['xyz', 'abc'], []],
-        ];
-    }
-
-    public static function percentDataProvider()
-    {
-        return [
-            [1, 0, static::percentResult(1, 1, 0, 100.0)],
-            [1, 1, static::percentResult(2, 1, 1, 50.0)],
-            [0, 1, static::percentResult(1, 0, 1, 0.0)],
-            [1, 2, static::percentResult(3, 1, 2, 33.0)],
-            [5, 1, static::percentResult(6, 5, 1, 83.0)],
-            [0, 0, static::EMPTY_PERCENT_RESULT]
-        ];
+        self::assertSame($expected, $app->getRawMilestones());
     }
 
     public static function boardDataProvider()
@@ -111,8 +59,8 @@ class ApplicationTest extends TestCase
         $queued_2 = ['number' => 2, 'labels' => [], 'state' => 'active', 'avatar_url' => null, 'closed_at' => null, 'progress' => static::EMPTY_PERCENT_RESULT];
         $completed_1 = ['number' => 3, 'labels' => [], 'state' => 'closed', 'avatar_url' => null, 'closed_at' => null, 'progress' => static::EMPTY_PERCENT_RESULT];
         $completed_2 = ['number' => 4, 'labels' => [], 'state' => 'closed', 'avatar_url' => null, 'closed_at' => null, 'progress' => static::EMPTY_PERCENT_RESULT];
-        $active_1 = ['number' => 5, 'labels' => ['z'], 'state' => 'active', 'avatar_url' => 'avater1', 'closed_at' => 1, 'progress' => static::EMPTY_PERCENT_RESULT];
-        $active_2 = ['number' => 6, 'labels' => ['x', 'y', 'z'], 'state' => 'active', 'avatar_url' => 'avater2', 'closed_at' => 2, 'progress' => static::EMPTY_PERCENT_RESULT];
+        $active_1 = ['number' => 5, 'labels' => ['z'], 'state' => 'active', 'avatar_url' => 'avater1', 'closed_at' => '2021-03-18T02:36:44Z', 'progress' => static::EMPTY_PERCENT_RESULT];
+        $active_2 = ['number' => 6, 'labels' => ['x', 'y', 'z'], 'state' => 'active', 'avatar_url' => 'avater2', 'closed_at' => '2021-03-16T02:36:44Z', 'progress' => static::EMPTY_PERCENT_RESULT];
         $paused_3 = ['number' => 7, 'labels' => ['x', 'y'], 'state' => 'active', 'avatar_url' => 'avater3', 'closed_at' => null, 'progress' => static::EMPTY_PERCENT_RESULT];
         return [
             'test_single_queued_issue'      => static::boardDataProviderSingle(
@@ -264,9 +212,41 @@ class ApplicationTest extends TestCase
                 ],
                 ['waiting-for-feedback']
             ),
+            'test_more_repos'               => static::boardDataProviderSingle(
+                [
+                    'repo1' => [
+                        3 => [
+                            'open'     => 2,
+                            'closed'   => 0,
+                            'issues'   => [$queued_1, $queued_2],
+                            'progress' => static::percentResult(2, 0, 2, 0)
+                        ],
+                        2 => [
+                            'open'     => 0,
+                            'closed'   => 2,
+                            'issues'   => [$completed_2, $completed_1],
+                            'progress' => static::percentResult(2, 2, 0, 100.0),
+                        ]
+                    ],
+                    'repo2' => [
+                        1 => [
+                            'open'     => 2,
+                            'closed'   => 0,
+                            'issues'   => [$active_1, $active_2],
+                            'progress' => static::percentResult(2, 0, 2, 0)
+                        ],
+                        5 => [
+                            'open'     => 0,
+                            'closed'   => 2,
+                            'issues'   => [$completed_2, $completed_1],
+                            'progress' => static::percentResult(2, 2, 0, 100.0),
+                        ]
+                    ],
+                ],
+                ['waiting-for-feedback']
+            ),
         ];
     }
-
 
     private static function boardDataProviderSingle($config, array $paused_labels)
     {
@@ -286,7 +266,7 @@ class ApplicationTest extends TestCase
                     $ms_number,
                     array_map(
                         function ($issue_raw) use ($ms_number) {
-                            return static::issueGitHub($ms_number, $issue_raw);
+                            return static::issueGithub($ms_number, $issue_raw);
                         },
                         $ms_config['issues']
                     )
@@ -365,8 +345,7 @@ class ApplicationTest extends TestCase
         ];
     }
 
-
-    private static function issueGitHub($ms_number, array $data)
+    private static function issueGithub($ms_number, array $data)
     {
         $issue = [
             'html_url'  => 'issue-url',
@@ -386,22 +365,6 @@ class ApplicationTest extends TestCase
         ];
 
         return $issue;
-    }
-
-    /**
-     * @param string[] $label_names
-     * @return array
-     */
-    private static function issueWithLabel(array $label_names)
-    {
-        return [
-            'labels' => array_map(
-                function ($label_name) {
-                    return ['name' => $label_name];
-                },
-                $label_names
-            )
-        ];
     }
 
     private static function percentResult(int $total, int $complete, int $remaining, float $percent)
