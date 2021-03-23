@@ -12,14 +12,13 @@ class GithubClient
     private $issues_api;
     private $account_name;
 
-    public function __construct()
+    public function __construct($token, $account)
     {
-        $this->account_name = Utilities::env('GH_USER_NAME');
-        $password = Utilities::env('GH_PASSWORD');
+        $this->account = $account;
         $this->client = new Client(
             new CachedHttpClient(['cache_dir' => '/tmp/github-api-cache'])
         );
-        $this->client->authenticate($this->account_name, $password, Client::AUTH_HTTP_PASSWORD);
+        $this->client->authenticate($token, null, Client::AUTH_HTTP_TOKEN);
         $this->issues_api = $this->client->api('issues');
     }
 

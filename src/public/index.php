@@ -9,15 +9,15 @@ use KanbanBoard\Application;
 use utils\Utilities;
 
 $repositories = explode('|', Utilities::env('GH_REPOSITORIES'));
-//$authentication = new \KanbanBoard\Login();
-//$token = $authentication->login();
-$github = new GithubClient();
-$board = new Application($github, $repositories, new GitFactory(), ['waiting-for-feedback']);
+$authentication = new Authentication();
+$token = $authentication->login();
+$github = new GithubClient($token, Utilities::env('GH_ACCOUNT'));
+$board = new Application($github, $repositories, new GitFactory(), array('waiting-for-feedback'));
 $board->run();
-$data = $board->getRawMilestones();
+
 $m = new Mustache_Engine(
-    [
+    array(
         'loader' => new Mustache_Loader_FilesystemLoader('../views'),
-    ]
+    )
 );
-echo $m->render('index', ['milestones' => $data]);
+echo $m->render('index', array('milestones' => $board->getRawMilestones()));
